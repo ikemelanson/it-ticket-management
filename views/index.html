@@ -1,54 +1,868 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>it ticket manager</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source%20Sans%20Pro:ExtraLight, Semibold">
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             new Vue({
                 el: '#app',
-                data: {},
+                // empty variables to hold data
+                data: {
+                    activeView: "tickets",
+                    techTickets: [],
+                    teamTickets: [],
+                    users: [],
+                    techs: [],
+                    teams: [],
+                    activeTicket: {},
+                    addTicket: false,
+                    ticketType: null,
+
+                },
+
                 methods: {
-                    // getData: async function () {
-                    //     const response = await fetch('https://dining-services-batch-495348054234.s3-us-west-2.amazonaws.com/dining/MTC/' + this.date.replace(/-/gi, ''))
-                    //     const data = await response.json();
-                    //     this.items = data;
-                    // }
+                    // get tech tickets and assign it to the tickets array
+                    getTechTickets: async function () {
+                        try {
+                            let response = await fetch("http://localhost:3000/api/gettickets/techs");
+                            let data = await response.json();
+                            this.techTickets = data;
+                            this.activeTicket = data[0]
+                        } catch (err) {
+                            console.log(err)
+                        }
+                    },
+
+                    // get team tickets and assign it to the team array
+                    getTeamTickets: async function () {
+                        try {
+                            let response = await fetch("http://localhost:3000/api/gettickets/teams");
+                            let data = await response.json();
+                            this.teamTickets = data;
+                        } catch (err) {
+                            console.log(err)
+                        }
+                    },
+
+                    // get users and asign it to the users array
+                    getUsers: async function () {
+                        try {
+                            let response = await fetch("http://localhost:3000/api/getusers");
+                            let data = await response.json();
+                            this.users = data;
+                        }
+                        catch (err) {
+                            console.log(err)
+                        }
+                    },
+
+                    // get technicians and assign it to the techs array
+                    getTechs: async function () {
+                        try {
+                            let response = await fetch("http://localhost:3000/api/gettechs");
+                            let data = await response.json();
+                            this.techs = data;
+                        }
+                        catch (err) {
+                            console.log(err)
+                        }
+                    },
+
+                    // get teams and assign it to the teams array
+                    getTeams: async function () {
+                        try {
+                            let response = await fetch("http://localhost:3000/api/getteams");
+                            let data = await response.json();
+                            this.teams = data;
+                        }
+                        catch (err) {
+                            console.log(err)
+                        }
+                    },
+
+                    // change which view is showed (tickets, users, technicians, or teams). change the styling of the clicked button
+                    setView(clickedButton) {
+
+                        document.getElementById(this.activeView + "-nav").classList.remove("nav-item-active")
+                        document.getElementById(clickedButton + "-nav").classList.add("nav-item-active")
+                        this.activeView = clickedButton
+                    },
+
+                    // show the form for creating  a new ticket
+                    newForm() {
+                            this.addTicket = true
+                    },
+
+                    // display the clicked ticket
+                    setActiveTicket(ticket) {
+                        this.addTicket = false
+                        this.activeTicket = ticket
+                    },
+
+                    // mark a ticket as complete, reload the tickets array
+                    markComplete: async function(id) {
+                        let myHeaders = new Headers();
+                        myHeaders.append("Content-Type", "application/json");
+
+                        let raw = JSON.stringify({
+                            "ticket_id": id.toString()
+                        });
+
+                        let requestOptions = {
+                            method: 'POST',
+                            headers: myHeaders,
+                            body: raw,
+                            redirect: 'follow'
+                        };
+
+                        await fetch("http://localhost:3000/api/markcomplete", requestOptions)
+                            .then(response => response.text())
+                            .then(result => console.log(result))
+                            .catch(error => console.log('error', error));
+
+                        await this.getTeamTickets();
+                        await this.getTechTickets();
+                    },
+
+                    // change styling of tech/team buttons on new ticket form
+                    techTeam(clicked) {
+                        if (clicked == 'tech') {
+                            document.getElementById(clicked + "-button").classList.add("active-button");
+                            document.getElementById("team-button").classList.remove("active-button");
+                        }
+                        else {
+                            document.getElementById(clicked + "-button").classList.add("active-button");
+                            document.getElementById("tech-button").classList.remove("active-button");
+                        }
+                        this.ticketType = clicked;
+                    },
+
+                    // submit a ticket, and reload the ticket array
+                    submitTicket: async function(type) {
+                        let myHeaders = new Headers();
+                        myHeaders.append("Content-Type", "application/json");
+
+                        if (type == "team") {
+                            team_id = document.getElementById("team_id").value;
+                            tech_id = null;
+                        }
+                        else {
+                            tech_id = document.getElementById("tech_id").value;
+                            team_id = null;
+                        }
+
+                        let raw = JSON.stringify({
+                            "ticket_name": document.getElementById("ticket_name").value,
+                            "ticket_desc": document.getElementById("ticket_desc").value,
+                            "end_user_id": document.getElementById("end_user_id").value,
+                            "tech_id": tech_id,
+                            "team_id": team_id
+                        });
+
+                        console.log(raw)
+
+                        let requestOptions = {
+                            method: 'POST',
+                            headers: myHeaders,
+                            body: raw,
+                            redirect: 'follow'
+                        };
+
+                        await fetch("http://localhost:3000/api/maketicket", requestOptions)
+                            .then(response => response.text())
+                            .then(result => console.log(result))
+                            .catch(error => console.log('error', error));
+
+                        await this.getTeamTickets();
+                        await this.getTechTickets();
+                        this.setActiveTicket(this.techTickets[0]);
+                    },
+
+                    // submit a new user and reload the user array
+                    submitUser: async function() {
+                        var myHeaders = new Headers();
+                        myHeaders.append("Content-Type", "application/json");
+
+                        var raw = JSON.stringify({
+                            "user_first_name": document.getElementById("user_first_name").value,
+                            "user_last_name": document.getElementById("user_last_name").value
+                        });
+
+                        var requestOptions = {
+                            method: 'POST',
+                            headers: myHeaders,
+                            body: raw,
+                            redirect: 'follow'
+                        };
+
+                        await fetch("http://localhost:3000/api/adduser", requestOptions)
+                            .then(response => response.text())
+                            .then(result => console.log(result))
+                            .catch(error => console.log('error', error));
+
+                        await this.getUsers();
+                        document.getElementById("userReset").click()
+
+                    },
+
+                    // submit a new technician and reload the techs array
+                    submitTech: async function() {
+                        var myHeaders = new Headers();
+                        myHeaders.append("Content-Type", "application/json");
+
+                        var raw = JSON.stringify({
+                            "tech_first_name": document.getElementById("tech_first_name").value,
+                            "tech_last_name": document.getElementById("tech_last_name").value
+                        });
+
+                        var requestOptions = {
+                            method: 'POST',
+                            headers: myHeaders,
+                            body: raw,
+                            redirect: 'follow'
+                        };
+
+                       await fetch("http://localhost:3000/api/addtech", requestOptions)
+                            .then(response => response.text())
+                            .then(result => console.log(result))
+                            .catch(error => console.log('error', error));
+
+                        await this.getTechs();
+                        document.getElementById("techReset").click()
+
+                    },
+
+                    // submit a new team and reload the teams array
+                    submitTeam: async function() {
+                        var myHeaders = new Headers();
+                        myHeaders.append("Content-Type", "application/json");
+
+                        var raw = JSON.stringify({
+                            "team_name": document.getElementById("team_name").value
+                        });
+
+                        var requestOptions = {
+                            method: 'POST',
+                            headers: myHeaders,
+                            body: raw,
+                            redirect: 'follow'
+                        };
+
+                        await fetch("http://localhost:3000/api/maketeam", requestOptions)
+                            .then(response => response.text())
+                            .then(result => console.log(result))
+                            .catch(error => console.log('error', error));
+
+                        await this.getTeams();
+                        document.getElementById("teamReset").click();
+                    },
                 },
-                created: function () {
-                },
-                computed: {
-                    // meals: function () {
-                    //     if (this.meal === 'Breakfast') {
-                    //         return this.items[0];
-                    //     }
-                    //     else if (this.meal === 'Lunch') {
-                    //         return this.items[1];
-                    //     }
-                    //     else {
-                    //         return this.items[2];
-                    //     }
-                    // },
-                    // allergens_exculded: function () {
-                    //     return this.excludeAllergen;
-                    // }
-                },
+                // when the page is mounted to the DOM, call these functions to load data
                 mounted() {
-                    // this.getData();
-                    // this.contentLoaded = true;
+                    this.getTechTickets();
+                    this.getTeamTickets();
+                    this.getUsers();
+                    this.getTechs();
+                    this.getTeams();
                 }
             })
         })
     </script>
+    <!-- styling -->
     <style>
+        * {
+            margin: 0%;
+        }
+
+        .title-text {
+            font-family: "Source Sans Pro", Helvetica, sans-serif;
+            font-weight: 100;
+            font-size: 50px;
+            color: #3f3f3f;
+        }
+
+        .bold-text {
+            font-family: "Source Sans Pro", Helvetica, sans-serif;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .normal-text {
+            font-family: "Source Sans Pro", Helvetica, sans-serif;
+            font-weight: 400;
+            font-size: 15px;
+            color: #3f3f3f;
+        }
+
+        .app {
+            display: flex;
+            height: 60vh;
+        }
+
+        .left-nav-bar {
+            display: flex;
+            flex-direction: column;
+
+            width: 20%;
+            min-width: 215px;
+            border-right: solid 1px #C4C4C4;
+        }
+
+        .nav-bar-title {
+            margin: 8px 17px;
+            overflow-wrap: break-word;
+        }
+
+        .nav-bar-items {
+            display: flex;
+            flex-direction: column;
+            margin: 5px 17px;
+            position: sticky;
+            top: 0px;
+        }
+
+        .nav-item:hover {
+            font-weight: 900;
+            color: #000000;
+        }
+
+        .nav-item {
+            margin: 5px 0px;
+            border: solid 1px #ffffff;
+            background-color: white;
+            padding: 0px;
+            font-size: 20px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .nav-item-active {
+            border-bottom: solid 1px #5c5c5c;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 80%;
+            max-width: calc(100% - 120px);
+            height: max-content;
+        }
+
+        .main-content-title {
+            position: sticky;
+            top: 0px;
+            background-color: white;
+            margin: 8px 17px;
+            width: calc(100% - 34px);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .add-new-cont {
+            display: flex;
+            align-items: center;
+            margin: 0px 40px;
+        }
+
+        .add-new-button {
+            background-color: white;
+            padding: 0px 25px;
+            border-radius: 25px;
+            border: 1px solid #3f3f3f;
+            color: black;
+            font-size: 25px;
+            cursor: pointer;
+        }
+
+        .add-new-button:hover {
+            background-color: #303030;
+            border-color: #3f3f3f;
+            color: white;
+        }
+
+        .add-new-button:active {
+            background-color: #1e1e1e;
+        }
+
+        .content-title-divider {
+            border-top: solid 1px #C4C4C4;
+            width: calc(100% - 34px);
+            position: sticky;
+            top: 62px;
+        }
+
+        .data-view {
+            display: flex;
+            justify-content: center;
+        }
+
+        .inner-data-view {
+            display: flex;
+            flex-direction: row;
+            margin: 30px;
+        }
+
+        .data-container {
+            margin: 10px;
+            width: calc(100% - 40px);
+            min-width: 350px;
+            height: 75vh;
+            border: solid 1px #C4C4C4;
+            border-radius: 3px;
+            box-shadow: 0px 0px 10px -8px #888888;
+            overflow: scroll;
+        }
+
+        .list-title {
+            display: flex;
+            align-items: flex-end;
+            position: sticky;
+            top: 0px;
+            background-color: white;
+            padding: 10px 20px;
+        }
+
+        .list-count {
+            margin: 0px 5px 3px 5px;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            background-color: white;
+            width: calc(100% - 40px);
+            padding: 10px 20px;
+            border-bottom: solid 1px #C4C4C4;
+            cursor: pointer;
+        }
+
+        .list-item-no-click {
+            display: flex;
+            justify-content: space-between;
+            background-color: white;
+            width: calc(100% - 40px);
+            padding: 10px 20px;
+            border-bottom: solid 1px #C4C4C4;
+        }
+
+        .list-item:hover {
+            background-color: #ededed;
+        }
+
+        .list-item:active {
+            background-color: #d0d0d0;
+        }
+
+        .list-main {
+            font-size: 15px;
+        }
+
+        .list-sec {
+            display: flex;
+            align-items: center;
+        }
+
+        .click-icon {
+            display: flex;
+            margin-left: 7px;
+        }
+
+        .form-details {
+            display: flex;
+            flex-direction: column;
+            margin: 20px;
+        }
+
+        .detail {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .detail-header {
+            font-size: 15px;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            margin-left: 6px;
+        }
+
+        .complete-container {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .complete-button {
+            font-size: 15px;
+        }
+
+        .team-tech-buttons {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0px;
+        }
+
+        .tech-button {
+            background-color: white;
+            border: solid 1px #3f3f3f;
+            border-bottom-left-radius: 10px;
+            border-top-left-radius: 10px;
+        }
+
+        .team-button {
+            background-color: white;
+            border: solid 1px #3f3f3f;
+            border-bottom-right-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+
+        .active-button {
+            background-color: #303030;
+            color: white;
+        }
+
+        .form-buttons-cont {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .form-buttons {
+            background-color: white;
+            border: solid 1px #3f3f3f;
+            border-radius: 15px;
+            padding: 2px 13px;
+            margin: 0px 10px;
+            cursor: pointer;
+        }
+
+        .form-buttons:hover {
+            background-color: #3f3f3f;
+            color: white;
+        }
+
+        .form-buttons:active {
+            background-color: #1e1e1e;
+            color: white;
+        }
+
+        .input {
+            margin-bottom: 10px;
+        }
+
+        /* responsive styling */
+        @media only screen and (max-width:1120px) {
+            .inner-data-view {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
+
 <body>
-    <div id="app">
+    <div id="app" class="app">
+        <!-- left nav bar -->
+        <div class="left-nav-bar">
+            <div class="nav-bar-title title-text">
+                it<br>ticket manager
+            </div>
+            <!-- nav bar items -->
+            <div class="nav-bar-items">
+                <button class="nav-item normal-text nav-item-active" @click="setView('tickets')" id="tickets-nav">
+                    tickets
+                </button>
+                <button class="nav-item normal-text" @click="setView('users')" id="users-nav">
+                    users
+                </button>
+                <button class="nav-item normal-text" @click="setView('techs')" id="techs-nav">
+                    technicians
+                </button>
+                <button class="nav-item normal-text" @click="setView('teams')" id="teams-nav">
+                    teams
+                </button>
+            </div>
+        </div>
+        <!-- main content -->
+        <div class="main-content">
+            <div class="main-content-title">
+                <div class="title-text">{{activeView}}</div>
+                <div v-if="activeView == 'tickets'" class="add-new-cont">
+                    <button class="add-new-button normal-text" @click="newForm()">+</button>
+                </div>
+            </div>
+            <div class="content-title-divider"></div>
+            <!-- tickets -->
+            <div v-if="activeView == 'tickets'" class="data-view">
+                <div class="inner-data-view">
+                    <!-- tickets list view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                ticket list
+                            </div>
+                            <div class="list-count normal-text">
+                                ({{techTickets.length + teamTickets.length}})
+                            </div>
+                        </div>
+                        <!-- for each ticket in the ticket array -->
+                        <div v-for="techTicket in techTickets" @click="setActiveTicket(techTicket)" class="list-item">
+                            <div class="list-main bold-text">{{techTicket.ticket_name}}</div>
+                            <div class="list-sec">
+                                <div class="normal-text">{{techTicket.tech_first_name}}</div>
+                                <div class="click-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-arrow-right-square" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M15 2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2zM0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm4.5 5.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-for="teamTicket in teamTickets" @click="setActiveTicket(teamTicket)" class="list-item">
+                            <div class="list-main bold-text">{{teamTicket.ticket_name}}</div>
+                            <div class="list-sec">
+                                <div class="normal-text">{{teamTicket.team_name}}</div>
+                                <div class="click-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-arrow-right-square" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M15 2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2zM0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm4.5 5.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- new ticket view -->
+                    <div v-if="addTicket" class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                new ticket
+                            </div>
+                        </div>
+                        <!-- new ticket form -->
+                        <form>
+                            <div class="form-details">
+                                <label class="normal-text" for="ticketName">ticket name:</label>
+                                <input type="text" id="ticket_name" name="ticket_name" maxlength="50" class="input">
+                                <label class="normal-text" for="ticketName">ticket description:</label>
+                                <input type="text" id="ticket_desc" name="ticket_desc" maxlength="150" class="input">
+                                <label class="normal-text" for="end_user_id">who is requesting:</label>
+                                <select id="end_user_id" name="end_user_id" class="input">
+                                    <option v-for="user in users" :value="user.end_user_id">{{user.user_first_name}}
+                                        {{user.user_last_name}}</option>
+                                </select>
+                                <label class="normal-text">who is responsible:</label>
+                                <div class="team-tech-buttons">
+                                    <button type="button" class="tech-button normal-text" id="tech-button"
+                                        @click="techTeam('tech')">technician</button>
+                                    <button type="button" class="team-button normal-text" id="team-button"
+                                        @click="techTeam('team')">team</button>
+                                </div>
+                                <select v-if="ticketType == 'team'" id="team_id" name="team_id" class="input">
+                                    <option v-for="team in teams" :value="team.team_id">{{team.team_name}}</option>
+                                </select>
+                                <select v-if="ticketType == 'tech'" id="tech_id" name="tech_id" class="input">
+                                    <option v-for="tech in techs" :value="tech.tech_id">{{tech.tech_first_name}}
+                                        {{tech.tech_last_name}}</option>
+                                </select>
+                                <div class="form-buttons-cont">
+                                    <button type="button" class="form-buttons normal-text"
+                                        @click="setActiveTicket(techTickets[0])">discard</button>
+                                    <button v-if="ticketType == 'team'" class="form-buttons normal-text" type="button"
+                                        @click="submitTicket('team')">submit</button>
+                                    <button v-else class="form-buttons normal-text" type="button"
+                                        @click="submitTicket('tech')">submit</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div v-else class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                {{activeTicket.ticket_name}}
+                            </div>
+                        </div>
+                        <div class="form-details">
+                            <!-- ticket details -->
+                            <div class="detail">
+                                <div class="detail-header bold-text">description:</div>
+                                <div class="detail-value normal-text">{{activeTicket.ticket_desc}}</div>
+                            </div>
+                            <div class="detail">
+                                <div class="detail-header bold-text">requested by:</div>
+                                <div class="detail-value normal-text">{{activeTicket.user_first_name}}
+                                    {{activeTicket.user_last_name}}</div>
+                            </div>
+                            <div v-if="activeTicket.team_id" class="detail">
+                                <div class="detail-header bold-text">responsible:</div>
+                                <div class="detail-value normal-text">{{activeTicket.team_name}}</div>
+                            </div>
+                            <div v-else class="detail">
+                                <div class="detail-header bold-text">responsible:</div>
+                                <div class="detail-value normal-text">{{activeTicket.tech_first_name}}
+                                    {{activeTicket.tech_last_name}}</div>
+                            </div>
+                            <div v-if="activeTicket.completed == 0" class="detail">
+                                <div class="detail-header bold-text">completed:</div>
+                                <div class="detail-value normal-text">no</div>
+                            </div>
+                            <div v-else class="detail">
+                                <div class="detail-header bold-text">completed:</div>
+                                <div class="detail-value normal-text">yes</div>
+                            </div>
+                            <div v-if="activeTicket.completed == 0" class="complete-container"
+                                @click="markComplete(activeTicket.ticket_id)">
+                                <button class="add-new-button normal-text complete-button">complete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- users -->
+            <div v-if="activeView == 'users'" class="data-view">
+                <div class="inner-data-view">
+                    <!-- users list view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                user list
+                            </div>
+                            <div class="list-count normal-text">
+                                ({{users.length}})
+                            </div>
+                        </div>
+                        <!-- for each user in the users list -->
+                        <div v-for="user in users" class="list-item-no-click">
+                            <div class="list-main bold-text">{{user.user_first_name}} {{user.user_last_name}}</div>
+                        </div>
+                    </div>
+                    <!-- users details view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                new user
+                            </div>
+                        </div>
+                        <!-- new user form -->
+                        <form>
+                            <div class="form-details">
+                                <label for="user_first_name" class="normal-text">first name:</label>
+                                <input type="text" name="user_first_name" maxlength="30" class="input"
+                                    id="user_first_name">
+                                <label for="user_last_name" class="normal-text">last name:</label>
+                                <input type="text" name="user_last_name" maxlength="30" class="input"
+                                    id="user_last_name">
+                                <div class="form-buttons-cont">
+                                    <button type="reset" id="userReset"
+                                        class="form-buttons normal-text">discard</button>
+                                    <button @click="submitUser()" class="form-buttons normal-text"
+                                        type="button">submit</button>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- techs -->
+            <div v-if="activeView == 'techs'" class="data-view">
+                <div class="inner-data-view">
+                    <!-- techs list view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                technician list
+                            </div>
+                            <div class="list-count normal-text">
+                                ({{techs.length}})
+                            </div>
+                        </div>
+                        <!-- for each tech in the techs array -->
+                        <div v-for="tech in techs" class="list-item-no-click">
+                            <div class="list-main bold-text">{{tech.tech_first_name}} {{tech.tech_last_name}}</div>
+                        </div>
+                    </div>
+                    <!-- techs details view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                new technician
+                            </div>
+                        </div>
+                        <!-- new tech form -->
+                        <form>
+                            <div class="form-details">
+                                <label for="tech_first_name" class="normal-text">first name:</label>
+                                <input type="text" name="tech_first_name" maxlength="30" class="input"
+                                    id="tech_first_name">
+                                <label for="tech_last_name" class="normal-text">last name:</label>
+                                <input type="text" name="tech_last_name" maxlength="30" class="input"
+                                    id="tech_last_name">
+
+                                <div class="form-buttons-cont">
+                                    <button type="reset" id="techReset"
+                                        class="form-buttons normal-text">discard</button>
+                                    <button @click="submitTech()" class="form-buttons normal-text"
+                                        type="button">submit</button>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- teams -->
+            <div v-if="activeView == 'teams'" class="data-view">
+                <div class="inner-data-view">
+                    <!-- teams list view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                teams list
+                            </div>
+                            <div class="list-count normal-text">
+                                ({{teams.length}})
+                            </div>
+                        </div>
+                        <!-- for each team in the teams array -->
+                        <div v-for="team in teams" class="list-item-no-click">
+                            <div class="list-main bold-text">{{team.team_name}}</div>
+                        </div>
+                    </div>
+                    <!-- techs details view -->
+                    <div class="data-container">
+                        <div class="list-title">
+                            <div class="bold-text">
+                                new team
+                            </div>
+                        </div>
+                        <!-- new team form -->
+                        <form>
+                            <div class="form-details">
+                                <label for="team_name" class="normal-text">team name:</label>
+                                <input type="text" name="team_name" maxlength="30" class="input" id="team_name">
+                                <div class="form-buttons-cont">
+                                    <button type="reset" id="teamReset"
+                                        class="form-buttons normal-text">discard</button>
+                                    <button @click="submitTeam()" class="form-buttons normal-text"
+                                        type="button">submit</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
 </body>
+
 </html>
